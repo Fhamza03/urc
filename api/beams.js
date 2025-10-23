@@ -1,7 +1,8 @@
-import {getConnecterUser, triggerNotConnected} from "../lib/session";
 
-const PushNotifications = require("@pusher/push-notifications-server");
+import PushNotifications from "@pusher/push-notifications-server";
+import { Redis } from '@upstash/redis';
 
+const redis = Redis.fromEnv();
 
 export default async (req, res) => {
 
@@ -24,3 +25,20 @@ export default async (req, res) => {
     console.log(JSON.stringify(beamsToken));
     res.send(beamsToken);
 };
+
+async function getConnecterUser(request) {
+    let token = new Headers(request.headers).get('Authorization');
+    if (token === undefined || token === null || token === "") {
+        return null;
+    } else {
+        token = token.replace("Bearer ", "");
+    }
+    console.log("checking " + token);
+    const user = await redis.get(token);
+    console.log("Got user : " + user.username);
+    return user;
+}
+
+function triggerNotConnected(res) {
+    res.status(401).json("{code: \"UNAUTHORIZED\", message: \"Session expired\"}");
+}

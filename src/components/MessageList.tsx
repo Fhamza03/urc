@@ -21,25 +21,6 @@ export function MessageList() {
     }
   }, []);
 
-  // Récupération des anciens messages à chaque chat sélectionné
-  useEffect(() => {
-    const fetchMessages = async () => {
-      if (!selectedChat) return;
-      try {
-        const token = sessionStorage.getItem("token");
-        const res = await fetch(`/api/message?userId=${selectedChat.id}`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        if (!res.ok) throw new Error("Erreur récupération messages");
-        const data = await res.json();
-        updateMessagesInChat(selectedChat.id, data.messages);
-      } catch (err) {
-        console.error(err);
-      }
-    };
-    fetchMessages();
-  }, [selectedChat, updateMessagesInChat]);
-
   // Auto-scroll quand de nouveaux messages arrivent
   useEffect(() => {
     scrollRef.current?.scrollTo({
@@ -56,6 +37,7 @@ export function MessageList() {
     try {
       const token = sessionStorage.getItem("token");
 
+      // Envoi du message
       const res = await fetch("/api/message", {
         method: "POST",
         headers: {
@@ -72,12 +54,23 @@ export function MessageList() {
       const data = await res.json();
 
       // Ajouter le message localement
-      updateMessagesInChat(selectedChat.id, [
+      const updatedMessages = [
         ...selectedChat.messages,
         { ...data.message, senderId: currentUser.id },
-      ]);
+      ];
+      updateMessagesInChat(selectedChat.id, updatedMessages);
 
       setNewMessage("");
+
+      // Re-fetch messages du serveur après envoi (optionnel)
+      const fetchRes = await fetch(`/api/message?userId=${selectedChat.id}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (fetchRes.ok) {
+        const fetchedData = await fetchRes.json();
+        updateMessagesInChat(selectedChat.id, fetchedData.messages);
+      }
+
     } catch (err) {
       console.error(err);
     }
