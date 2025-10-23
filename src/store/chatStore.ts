@@ -3,8 +3,8 @@ import { create } from "zustand";
 
 // Messages
 export interface Message {
-  id: number;
-  sender: string;
+  senderId: number | "me";
+  receiverId?: number;
   content: string;
   timestamp: string;
 }
@@ -29,7 +29,7 @@ interface ChatState {
   users: User[];
   setRooms: (rooms: Chat[]) => void;
   selectChat: (chat: Chat) => void;
-  sendMessage: (chatId: number, message: Message) => void;
+  updateMessagesInChat: (chatId: number, messages: Message[]) => void;
   setUsers: (users: User[]) => void;
 }
 
@@ -38,13 +38,29 @@ export const useChatStore = create<ChatState>((set, get) => ({
   selectedChat: null,
   users: [],
 
-  setRooms: (rooms: Chat[]) => set({ rooms }),
-  selectChat: (chat: Chat) => set({ selectedChat: chat }),
-  sendMessage: (chatId: number, message: Message) => {
-    const rooms = get().rooms.map((room) =>
-      room.id === chatId ? { ...room, messages: [...room.messages, message] } : room
-    );
-    set({ rooms });
+  setRooms: (rooms) => set({ rooms }),
+
+  selectChat: (chat) => {
+    if (chat.id != null && chat.name) {
+      set({ selectedChat: chat });
+    }
   },
-  setUsers: (users: User[]) => set({ users }),
+
+  updateMessagesInChat: (chatId, messages) => {
+    const rooms = get().rooms.map((room) =>
+      room.id === chatId ? { ...room, messages } : room
+    );
+
+    const users = get().users.map((user) =>
+      user.id === chatId ? { ...user, messages } : user
+    );
+
+    const selectedChat = get().selectedChat?.id === chatId
+      ? { ...get().selectedChat!, messages }
+      : get().selectedChat;
+
+    set({ rooms, users, selectedChat });
+  },
+
+  setUsers: (users) => set({ users }),
 }));

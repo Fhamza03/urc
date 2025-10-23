@@ -26,22 +26,35 @@ export function Login() {
     const data = new FormData(form);
 
     loginUser(
-      {
-        user_id: -1,
-        username: data.get("login") as string,
-        password: data.get("password") as string,
-      },
-      (result: Session) => {
-        setSession(result);
-        router("/chatPage");
-        form.reset();
-        setError({ name: "", message: "" });
-      },
-      (loginError: CustomError) => {
-        setError(loginError);
-        setSession({} as Session);
-      }
+  {
+    user_id: -1,
+    username: data.get("login") as string,
+    password: data.get("password") as string,
+  },
+  (result: Session) => {
+    setSession(result);
+
+    // ✅ Stockage dans sessionStorage pour que le chat sache qui est l'utilisateur
+    sessionStorage.setItem("token", result.token);
+    sessionStorage.setItem(
+      "user",
+      JSON.stringify({
+        id: result.id,
+        username: result.username,
+        externalId: result.externalId,
+      })
     );
+
+    router("/chatPage");
+    form.reset();
+    setError({ name: "", message: "" });
+  },
+  (loginError: CustomError) => {
+    setError(loginError);
+    setSession({} as Session);
+  }
+);
+
   };
 
   return (
