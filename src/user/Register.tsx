@@ -141,7 +141,7 @@ export function Register() {
             <Link
               component="button"
               variant="body2"
-              onClick={() => router("/login")}
+              onClick={() => router("/")}
               sx={{ color: "#0077B6", fontWeight: "bold" }}
             >
               Déjà un compte ? Connectez-vous

@@ -33,7 +33,7 @@ export function Login() {
       },
       (result: Session) => {
         setSession(result);
-        router("/chat");
+        router("/chatPage");
         form.reset();
         setError({ name: "", message: "" });
       },
