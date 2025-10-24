@@ -1,5 +1,5 @@
 import { Paper, Typography } from "@mui/material";
-import { useChatStore } from "../store/chatStore";
+import { useChatStore, ChatType } from "../store/chatStore";
 import { MessageList } from "./MessageList";
 
 export const ChatWindow: React.FC = () => {
@@ -15,10 +15,13 @@ export const ChatWindow: React.FC = () => {
     );
   }
 
+  // Déterminer le nom à afficher
+  const chatName = "name" in selectedChat ? selectedChat.name : selectedChat.username;
+
   return (
     <Paper sx={{ flex: 1, display: "flex", flexDirection: "column", bgcolor: "#f0f4f8" }}>
       <Typography variant="h6" sx={{ p: 2, borderBottom: "1px solid #ccc", fontWeight: "bold" }}>
-        {selectedChat.name}
+        {chatName}
       </Typography>
       <MessageList />
     </Paper>

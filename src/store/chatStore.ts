@@ -1,66 +1,74 @@
-// src/store/chatStore.ts
 import { create } from "zustand";
 
-// Messages
+// Fichier : ../store/chatStore.ts (Mise à jour essentielle)
+
 export interface Message {
-  senderId: number | "me";
-  receiverId?: number;
+  id?: number | string; 
+  senderId?: number | string; // Gère le camelCase
+  sender_id?: number | string; // Gère le snake_case de la BDD (utilisé dans MessageList.tsx)
+  receiverId?: number; 
+  room_id?: number; 
   content: string;
-  timestamp: string;
+  sent_at?: string; 
+  timestamp?: string; 
+  sender_username?: string; 
 }
 
-// Salons / Chats
 export interface Chat {
   id: number;
   name: string;
   messages: Message[];
+  // Rendu obligatoire par UserList.tsx
+  isMember: boolean; 
 }
 
+// ... le reste de votre store ...
 // Utilisateurs
 export interface User {
   id: number;
   username: string;
   last_login?: string;
+  messages?: Message[];
 }
+
+// Type unifié pour selectedChat
+export type ChatType = Chat | (User & { messages: Message[] });
 
 interface ChatState {
   rooms: Chat[];
-  selectedChat: Chat | null;
   users: User[];
+  selectedChat: ChatType | null;
   setRooms: (rooms: Chat[]) => void;
-  selectChat: (chat: Chat) => void;
-  updateMessagesInChat: (chatId: number, messages: Message[]) => void;
   setUsers: (users: User[]) => void;
+  selectChat: (chat: ChatType) => void;
+  updateMessagesInChat: (chatId: number, messages: Message[]) => void;
 }
 
 export const useChatStore = create<ChatState>((set, get) => ({
   rooms: [],
-  selectedChat: null,
   users: [],
+  selectedChat: null,
 
   setRooms: (rooms) => set({ rooms }),
+  setUsers: (users) => set({ users }),
 
   selectChat: (chat) => {
-    if (chat.id != null && chat.name) {
-      set({ selectedChat: chat });
-    }
+    if (chat.id != null) set({ selectedChat: chat });
   },
 
   updateMessagesInChat: (chatId, messages) => {
     const rooms = get().rooms.map((room) =>
       room.id === chatId ? { ...room, messages } : room
     );
-
     const users = get().users.map((user) =>
       user.id === chatId ? { ...user, messages } : user
     );
 
-    const selectedChat = get().selectedChat?.id === chatId
-      ? { ...get().selectedChat!, messages }
-      : get().selectedChat;
+    const selectedChat =
+      get().selectedChat?.id === chatId
+        ? { ...get().selectedChat!, messages }
+        : get().selectedChat;
 
     set({ rooms, users, selectedChat });
   },
-
-  setUsers: (users) => set({ users }),
 }));

@@ -1,5 +1,7 @@
+// Fichier : src/components/MessageList.tsx
+
 import { Box, Typography, TextField, Button, Paper } from "@mui/material";
-import { useChatStore } from "../store/chatStore";
+import { useChatStore, Chat, Message } from "../store/chatStore";
 import { useState, useRef, useEffect } from "react";
 
 export function MessageList() {
@@ -8,21 +10,21 @@ export function MessageList() {
   const [currentUser, setCurrentUser] = useState<any>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  // Charger l'utilisateur connecté depuis sessionStorage
+  const isRoom = (chat: any): chat is Chat => chat && "messages" in chat;
+
   useEffect(() => {
     const userData = sessionStorage.getItem("user");
     if (userData) {
       try {
-        const parsedUser = JSON.parse(userData);
-        setCurrentUser(parsedUser);
+        setCurrentUser(JSON.parse(userData));
       } catch {
         console.error("Erreur parsing user session");
       }
     }
   }, []);
 
-  // Auto-scroll quand de nouveaux messages arrivent
   useEffect(() => {
+    // Fait défiler vers le bas à chaque fois que la liste des messages change
     scrollRef.current?.scrollTo({
       top: scrollRef.current.scrollHeight,
       behavior: "smooth",
@@ -36,55 +38,80 @@ export function MessageList() {
 
     try {
       const token = sessionStorage.getItem("token");
+      let apiUrl: string;
+      let body: any;
 
-      // Envoi du message
-      const res = await fetch("/api/message", {
+      if (isRoom(selectedChat)) {
+        apiUrl = "/api/roomMessages";
+        body = { roomId: selectedChat.id, content: newMessage };
+      } else {
+        apiUrl = "/api/message";
+        body = { receiverId: selectedChat.id, content: newMessage };
+      }
+
+      // 1. Ajout du message localement (pour une réponse utilisateur instantanée)
+      const temporaryMessage: Message = {
+        id: Math.random().toString(), 
+        senderId: currentUser.id, 
+        content: newMessage,
+        sent_at: new Date().toISOString(),
+        sender_username: currentUser.username, 
+      };
+
+      // Met à jour le store avec le message temporaire
+      updateMessagesInChat(selectedChat.id, [...selectedChat.messages, temporaryMessage]);
+      setNewMessage("");
+
+      // 2. Envoi au serveur
+      const res = await fetch(apiUrl, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({
-          receiverId: selectedChat.id,
-          content: newMessage,
-        }),
+        body: JSON.stringify(body),
       });
 
       if (!res.ok) throw new Error("Erreur envoi message");
-      const data = await res.json();
 
-      // Ajouter le message localement
-      const updatedMessages = [
-        ...selectedChat.messages,
-        { ...data.message, senderId: currentUser.id },
-      ];
-      updateMessagesInChat(selectedChat.id, updatedMessages);
+      // 3. Re-fetch les messages pour la synchronisation (incluant le nouveau message avec son ID serveur)
+      const fetchUrl = isRoom(selectedChat)
+        ? `/api/roomMessages?roomId=${selectedChat.id}`
+        : `/api/message?userId=${selectedChat.id}`;
 
-      setNewMessage("");
-
-      // Re-fetch messages du serveur après envoi (optionnel)
-      const fetchRes = await fetch(`/api/message?userId=${selectedChat.id}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const fetchRes = await fetch(fetchUrl, { headers: { Authorization: `Bearer ${token}` } });
       if (fetchRes.ok) {
         const fetchedData = await fetchRes.json();
-        updateMessagesInChat(selectedChat.id, fetchedData.messages);
+        // Remplace les messages temporaires par la liste fraîche du serveur
+        updateMessagesInChat(selectedChat.id, fetchedData.messages || fetchedData); 
       }
-
     } catch (err) {
       console.error(err);
+      // OPTIONNEL: En cas d'échec, vous pourriez vouloir retirer le message temporaire.
     }
   };
 
   return (
     <Paper sx={{ flex: 1, display: "flex", flexDirection: "column", bgcolor: "#f0f4f8", p: 2 }}>
       <Box sx={{ flexGrow: 1, overflowY: "auto", mb: 2 }} ref={scrollRef}>
-        {selectedChat.messages.map((msg, index) => {
-          const isMine = msg.senderId === currentUser.id;
+        {selectedChat.messages.map((msg: Message, index: number) => {
+          
+          let msgSenderIdRaw = msg.senderId || msg.sender_id; 
+          
+          if (msgSenderIdRaw === "me") {
+            msgSenderIdRaw = currentUser.id;
+          } else if (msgSenderIdRaw === undefined || msgSenderIdRaw === null) {
+            msgSenderIdRaw = 0; 
+          }
+          
+          const currentUserId = parseInt(currentUser.id, 10);
+          const msgSenderId = parseInt(String(msgSenderIdRaw), 10); 
+          
+          const isMine = msgSenderId === currentUserId;
 
           return (
             <Box
-              key={msg.timestamp + msg.senderId + index}
+              key={msg.id || index} 
               sx={{
                 display: "flex",
                 justifyContent: isMine ? "flex-end" : "flex-start",
@@ -99,14 +126,18 @@ export function MessageList() {
                   bgcolor: isMine ? "#1976d2" : "#e0e0e0",
                   color: isMine ? "#fff" : "#000",
                   wordBreak: "break-word",
+                  boxShadow: 1,
                 }}
               >
+                {!isMine && isRoom(selectedChat) && (
+                  <Typography variant="caption" sx={{ display: "block", fontWeight: 'bold', mb: 0.5, color: '#333' }}>
+                    {msg.sender_username || "Inconnu"} 
+                  </Typography>
+                )}
+                
                 <Typography variant="body2">{msg.content}</Typography>
-                <Typography
-                  variant="caption"
-                  sx={{ display: "block", textAlign: "right" }}
-                >
-                  {new Date(msg.timestamp).toLocaleTimeString([], {
+                <Typography variant="caption" sx={{ display: "block", textAlign: "right", opacity: 0.8, mt: 0.5, fontSize: '0.65rem' }}>
+                  {new Date(msg.sent_at || msg.timestamp || new Date().toISOString()).toLocaleTimeString([], {
                     hour: "2-digit",
                     minute: "2-digit",
                   })}
