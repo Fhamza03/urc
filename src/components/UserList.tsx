@@ -1,5 +1,3 @@
-// Fichier : src/components/UserList.tsx (Final et Corrigé)
-
 import {
   List,
   ListItem,
@@ -32,20 +30,21 @@ export function UserList() {
     const token = sessionStorage.getItem("token");
     if (!token) return;
 
-    // Fetch rooms (cette requête renverra maintenant 'is_member')
+    // Fetch rooms (avec is_member)
     fetch("/api/rooms", { headers: { Authorization: `Bearer ${token}` } })
       .then((res) => (res.ok ? res.json() : Promise.reject("Non autorisé")))
       .then((data) =>
-        setRooms(data.map((room: any) => ({ 
-            ...room, 
-            messages: [], 
-            // isMember est correctement initialisé
-            isMember: room.is_member || false 
-        })))
+        setRooms(
+          data.map((room: any) => ({
+            ...room,
+            messages: [],
+            isMember: room.is_member || false,
+          }))
+        )
       )
       .catch((err) => console.error("Erreur fetch rooms:", err));
 
-    // Fetch utilisateurs (maintenu)
+    // Fetch utilisateurs
     fetch("/api/users", { headers: { Authorization: `Bearer ${token}` } })
       .then((res) => (res.ok ? res.json() : Promise.reject("Non autorisé")))
       .then((data) => setUsers(data))
@@ -55,7 +54,12 @@ export function UserList() {
   const handleSelectUser = async (user: any) => {
     if (!user.id || !user.username) return;
 
-    const userChat: Chat = { id: user.id, name: user.username, messages: [], isMember: true }; 
+    const userChat: Chat = {
+      id: user.id,
+      name: user.username,
+      messages: [],
+      isMember: true,
+    };
     selectChat(userChat);
     navigate(`/chatPage/user/${user.id}`);
 
@@ -85,59 +89,68 @@ export function UserList() {
       });
 
       if (!res.ok && res.status !== 200) throw new Error("Erreur join room");
-      
-      // La mise à jour de l'objet 'room' directement est risquée
-      // room.isMember = true; 
-      
-      // Mise à jour de l'état global du store de manière immuable
-      setRooms(rooms.map(r => 
-        r.id === room.id 
-          ? { ...r, isMember: true } 
-          : r
-      ));
-      
-      // Sélectionner le salon mis à jour
+
+      // Mise à jour du store
+      setRooms(
+        rooms.map((r) => (r.id === room.id ? { ...r, isMember: true } : r))
+      );
+
       selectChat({ ...room, isMember: true });
       navigate(`/chatPage/room/${room.id}`);
 
-      // Fetch des messages après avoir rejoint
+      // Fetch messages après avoir rejoint
       const msgsRes = await fetch(`/api/roomMessages?roomId=${room.id}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (msgsRes.ok) {
         const data = await msgsRes.json();
-        updateMessagesInChat(room.id, data); 
+        updateMessagesInChat(room.id, data);
       }
     } catch (err) {
       console.error("Erreur join room:", err);
     }
   };
 
+  const handleLogout = () => {
+    sessionStorage.removeItem("token");  
+    sessionStorage.removeItem("externalId");
+    sessionStorage.removeItem("user");
+    sessionStorage.removeItem("username");
+    setRooms([]);
+    setUsers([]);
+    navigate("/");
+  };
+
   return (
     <Paper
       sx={{
         width: 280,
-        height: "100%",
+        height: "100vh",
         overflowY: "auto",
         p: 2,
         bgcolor: "#fff",
         boxShadow: 3,
+        display: "flex",
+        flexDirection: "column",
       }}
     >
-      <Typography variant="h6" textAlign="center" sx={{ mb: 2, fontWeight: "bold" }}>
+      <Typography
+        variant="h6"
+        textAlign="center"
+        sx={{ mb: 2, fontWeight: "bold" }}
+      >
         Salons
       </Typography>
 
-      <List>
-        {rooms.map((room) => ( 
+      <List sx={{ flexGrow: 1 }}>
+        {rooms.map((room) => (
           <ListItem key={room.id} disablePadding>
             <Box sx={{ display: "flex", alignItems: "center", width: "100%", gap: 1 }}>
               <ListItemButton
                 sx={{ flex: 1 }}
-                // Désactivé si l'utilisateur n'est PAS membre
-                disabled={!room.isMember} 
+                disabled={!room.isMember}
                 onClick={async () => {
-                  if (!room.isMember) return; 
+                  if (!room.isMember) return;
 
                   selectChat(room);
                   navigate(`/chatPage/room/${room.id}`);
@@ -152,18 +165,19 @@ export function UserList() {
                   }
                 }}
               >
-                <ListItemText 
-                  primary={room.name} 
-                  secondary={!room.isMember ? "Non membre" : null} 
-                  sx={{ 
-                    opacity: room.isMember ? 1 : 0.6, 
-                    "& .MuiListItemText-primary": { fontWeight: room.isMember ? 'bold' : 'normal' }
+                <ListItemText
+                  primary={room.name}
+                  secondary={!room.isMember ? "Non membre" : null}
+                  sx={{
+                    opacity: room.isMember ? 1 : 0.6,
+                    "& .MuiListItemText-primary": {
+                      fontWeight: room.isMember ? "bold" : "normal",
+                    },
                   }}
                 />
               </ListItemButton>
 
-              {/* Affiche le bouton 'Rejoindre' uniquement si isMember est false */}
-              {!room.isMember && ( 
+              {!room.isMember && (
                 <Button
                   variant="contained"
                   size="small"
@@ -177,14 +191,17 @@ export function UserList() {
         ))}
       </List>
 
-
       <Divider sx={{ my: 2 }} />
 
-      <Typography variant="h6" textAlign="center" sx={{ mb: 2, fontWeight: "bold" }}>
+      <Typography
+        variant="h6"
+        textAlign="center"
+        sx={{ mb: 2, fontWeight: "bold" }}
+      >
         Utilisateurs
       </Typography>
 
-      <List>
+      <List sx={{ flexGrow: 1 }}>
         {users.map((user) => (
           <ListItem key={user.id} disablePadding>
             <ListItemButton onClick={() => handleSelectUser(user)}>
@@ -195,7 +212,9 @@ export function UserList() {
                 <Typography variant="body1">{user.username}</Typography>
                 <Typography variant="caption" color="text.secondary">
                   {user.last_login
-                    ? `Dernière connexion : ${new Date(user.last_login).toLocaleString()}`
+                    ? `Dernière connexion : ${new Date(
+                        user.last_login
+                      ).toLocaleString()}`
                     : "Jamais connecté"}
                 </Typography>
               </Box>
@@ -203,6 +222,20 @@ export function UserList() {
           </ListItem>
         ))}
       </List>
+
+      <Divider sx={{ my: 2 }} />
+
+      {/* Bouton de déconnexion */}
+      <Box sx={{ textAlign: "center", mt: "auto" }}>
+        <Button
+          variant="outlined"
+          color="error"
+          onClick={handleLogout}
+          sx={{ width: "100%" }}
+        >
+          Déconnexion
+        </Button>
+      </Box>
     </Paper>
   );
 }

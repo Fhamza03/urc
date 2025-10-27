@@ -15,33 +15,48 @@ export default async function handler(req, res) {
     if (!user) return triggerNotConnected(res);
 
     if (req.method === "POST") {
-      const { receiverId, content } = req.body;
-      if (!receiverId || !content)
-        return res.status(400).json({ error: "receiverId et content requis" });
+      // 1. Récupérer imageUrl en plus
+      const { receiverId, content, imageUrl } = req.body; 
+      
+      // Validation mise à jour: nécessite receiverId ET au moins content OU imageUrl
+      if (!receiverId || (!content && !imageUrl)) {
+        return res.status(400).json({ error: "receiverId et au moins content ou imageUrl requis" });
+      }
 
       const conversationKey = `chat:${[user.id, receiverId].sort().join("-")}`;
+      
+      // 2. Inclure imageUrl dans l'objet stocké
       const messageObj = {
         senderId: user.id,
         receiverId,
-        content,
+        content: content || "", // Assure que content est une chaîne vide si seulement image est envoyée
+        imageUrl, // Nouvelle propriété
         timestamp: new Date().toISOString(),
       };
 
       // Stocker le message dans Redis
       await redis.lpush(conversationKey, JSON.stringify(messageObj));
-      await redis.expire(conversationKey, 24 * 60 * 60);
 
       // 🔔 Envoi notification push au destinataire
       try {
+        // Détermine le corps de la notification
+        let notificationBody = content;
+        if (!content && imageUrl) {
+            notificationBody = "🖼️ Image/GIF envoyé(e)";
+        } else if (content && imageUrl) {
+            notificationBody = `${content} [Image/GIF]`;
+        }
+
         await beamsClient.publishToUsers([receiverId.toString()], {
           web: {
             notification: {
               title: user.username,
-              body: content,
+              body: notificationBody,
               deep_link: `/chat/user/${user.id}`,
               ico: "https://www.univ-brest.fr/themes/custom/ubo_parent/favicon.ico",
             },
-            data: { senderId: user.id, content },
+            // Inclure l'URL dans les données pour la mise à jour côté client
+            data: { senderId: user.id, content, imageUrl }, 
           },
         });
       } catch (notifErr) {

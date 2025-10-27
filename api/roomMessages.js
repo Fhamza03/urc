@@ -1,3 +1,5 @@
+// Fichier : /api/roomMessages.js
+
 import { sql } from "@vercel/postgres";
 import { checkSession, unauthorizedResponse, getConnecterUser } from "../lib/session";
 
@@ -12,9 +14,13 @@ export default async function handler(req) {
     if (!currentUser) return unauthorizedResponse();
 
     if (req.method === "POST") {
-      const { roomId, content } = await req.json();
-      if (!roomId || !content) {
-        return new Response(JSON.stringify({ error: "roomId et content requis" }), {
+      // 1. Récupération de 'imageUrl' en plus de 'roomId' et 'content'
+      const { roomId, content, imageUrl } = await req.json();
+      
+      // La validation doit autoriser l'envoi d'une image sans texte, 
+      // ou d'un texte sans image, mais pas les deux vides.
+      if (!roomId || (!content && !imageUrl)) {
+        return new Response(JSON.stringify({ error: "roomId et au moins content ou imageUrl requis" }), {
           status: 400,
           headers: { "content-type": "application/json" },
         });
@@ -32,11 +38,12 @@ export default async function handler(req) {
         });
       }
 
-      // Insérer le message
+      // 2. Insérer le message, y compris 'image_url'
+      // Utilisation de || null pour s'assurer que si imageUrl est undefined, SQL reçoit NULL.
       const { rows } = await sql`
-        INSERT INTO messages (room_id, sender_id, content)
-        VALUES (${roomId}, ${currentUser.id}, ${content})
-        RETURNING message_id, room_id, sender_id, content, sent_at;
+        INSERT INTO messages (room_id, sender_id, content, image_url)
+        VALUES (${roomId}, ${currentUser.id}, ${content || ''}, ${imageUrl || null})
+        RETURNING message_id, room_id, sender_id, content, image_url, sent_at;
       `;
 
       const message = rows[0];
@@ -69,9 +76,15 @@ export default async function handler(req) {
         });
       }
 
-      // Récupérer les messages
+      // 3. Récupérer les messages, en incluant 'm.image_url'
       const { rows } = await sql`
-        SELECT m.message_id, m.sender_id, m.content, m.sent_at, u.username AS sender_username
+        SELECT 
+          m.message_id, 
+          m.sender_id, 
+          m.content, 
+          m.image_url,  -- NOUVEAU: Récupération de l'URL de l'image
+          m.sent_at, 
+          u.username AS sender_username
         FROM messages m
         JOIN users u ON m.sender_id = u.user_id
         WHERE m.room_id = ${roomId}

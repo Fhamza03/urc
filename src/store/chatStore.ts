@@ -4,16 +4,16 @@ import { create } from "zustand";
 
 export interface Message {
   id?: number | string; 
-  senderId?: number | string; // Gère le camelCase
-  sender_id?: number | string; // Gère le snake_case de la BDD (utilisé dans MessageList.tsx)
+  senderId?: number | string; 
+  sender_id?: number | string; 
   receiverId?: number; 
   room_id?: number; 
   content: string;
+  imageUrl?: string; 
   sent_at?: string; 
   timestamp?: string; 
   sender_username?: string; 
 }
-
 export interface Chat {
   id: number;
   name: string;

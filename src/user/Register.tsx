@@ -29,7 +29,7 @@ export function Register() {
         setSuccess(true);
         setError({ name: "", message: "" });
         form.reset();
-        setTimeout(() => router("/login"), 1500);
+        setTimeout(() => router("/"), 1000);
       },
       (err: CustomError) => {
         setError(err);

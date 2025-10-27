@@ -1,17 +1,32 @@
-// Fichier : src/components/MessageList.tsx
-
-import { Box, Typography, TextField, Button, Paper } from "@mui/material";
+import {
+  Box,
+  Typography,
+  TextField,
+  Paper,
+  IconButton,
+} from "@mui/material";
+import { Image, Send } from "@mui/icons-material";
 import { useChatStore, Chat, Message } from "../store/chatStore";
 import { useState, useRef, useEffect } from "react";
+import { useLocation } from "react-router-dom"; // pour lire l'URL
 
 export function MessageList() {
   const { selectedChat, updateMessagesInChat } = useChatStore();
   const [newMessage, setNewMessage] = useState("");
+  const [imageFile, setImageFile] = useState<File | null>(null);
   const [currentUser, setCurrentUser] = useState<any>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const location = useLocation(); // récupère l'URL actuelle
 
-  const isRoom = (chat: any): chat is Chat => chat && "messages" in chat;
+  // Défilement automatique en bas
+  useEffect(() => {
+    scrollRef.current?.scrollTo({
+      top: scrollRef.current.scrollHeight,
+      behavior: "smooth",
+    });
+  }, [selectedChat?.messages]);
 
+  // Récupération des infos de l'utilisateur courant depuis session
   useEffect(() => {
     const userData = sessionStorage.getItem("user");
     if (userData) {
@@ -23,25 +38,32 @@ export function MessageList() {
     }
   }, []);
 
-  useEffect(() => {
-    // Fait défiler vers le bas à chaque fois que la liste des messages change
-    scrollRef.current?.scrollTo({
-      top: scrollRef.current.scrollHeight,
-      behavior: "smooth",
-    });
-  }, [selectedChat?.messages]);
-
   if (!selectedChat || !currentUser) return null;
 
+  const toBase64 = (file: File) =>
+    new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = (error) => reject(error);
+    });
+
+  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) setImageFile(file);
+  };
+
   const handleSend = async () => {
-    if (!newMessage.trim()) return;
+    if (!newMessage.trim() && !imageFile) return;
 
     try {
       const token = sessionStorage.getItem("token");
       let apiUrl: string;
-      let body: any;
+      let body: any = {};
 
-      if (isRoom(selectedChat)) {
+      // ✅ Détermine le type via l'URL
+      const isRoom = location.pathname.startsWith("/chatPage/room/");
+      if (isRoom) {
         apiUrl = "/api/roomMessages";
         body = { roomId: selectedChat.id, content: newMessage };
       } else {
@@ -49,20 +71,28 @@ export function MessageList() {
         body = { receiverId: selectedChat.id, content: newMessage };
       }
 
-      // 1. Ajout du message localement (pour une réponse utilisateur instantanée)
+      if (imageFile) {
+        const base64 = await toBase64(imageFile);
+        body.imageUrl = base64;
+      }
+
+      // Message local temporaire
       const temporaryMessage: Message = {
-        id: Math.random().toString(), 
-        senderId: currentUser.id, 
-        content: newMessage,
+        id: Math.random().toString(),
+        senderId: currentUser.id,
+        content: newMessage || "",
         sent_at: new Date().toISOString(),
-        sender_username: currentUser.username, 
+        sender_username: currentUser.username,
+        imageUrl: imageFile ? URL.createObjectURL(imageFile) : undefined,
       };
 
-      // Met à jour le store avec le message temporaire
-      updateMessagesInChat(selectedChat.id, [...selectedChat.messages, temporaryMessage]);
+      updateMessagesInChat(selectedChat.id, [
+        ...selectedChat.messages,
+        temporaryMessage,
+      ]);
       setNewMessage("");
+      setImageFile(null);
 
-      // 2. Envoi au serveur
       const res = await fetch(apiUrl, {
         method: "POST",
         headers: {
@@ -74,44 +104,47 @@ export function MessageList() {
 
       if (!res.ok) throw new Error("Erreur envoi message");
 
-      // 3. Re-fetch les messages pour la synchronisation (incluant le nouveau message avec son ID serveur)
-      const fetchUrl = isRoom(selectedChat)
+      // Re-fetch messages depuis serveur
+      const fetchUrl = isRoom
         ? `/api/roomMessages?roomId=${selectedChat.id}`
         : `/api/message?userId=${selectedChat.id}`;
 
-      const fetchRes = await fetch(fetchUrl, { headers: { Authorization: `Bearer ${token}` } });
+      const fetchRes = await fetch(fetchUrl, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
       if (fetchRes.ok) {
         const fetchedData = await fetchRes.json();
-        // Remplace les messages temporaires par la liste fraîche du serveur
-        updateMessagesInChat(selectedChat.id, fetchedData.messages || fetchedData); 
+        updateMessagesInChat(
+          selectedChat.id,
+          fetchedData.messages || fetchedData
+        );
       }
     } catch (err) {
-      console.error(err);
-      // OPTIONNEL: En cas d'échec, vous pourriez vouloir retirer le message temporaire.
+      console.error("Erreur handleSend:", err);
     }
   };
 
   return (
-    <Paper sx={{ flex: 1, display: "flex", flexDirection: "column", bgcolor: "#f0f4f8", p: 2 }}>
+    <Paper
+      sx={{
+        flex: 1,
+        display: "flex",
+        flexDirection: "column",
+        bgcolor: "#f0f4f8",
+        p: 2,
+      }}
+    >
       <Box sx={{ flexGrow: 1, overflowY: "auto", mb: 2 }} ref={scrollRef}>
         {selectedChat.messages.map((msg: Message, index: number) => {
-          
-          let msgSenderIdRaw = msg.senderId || msg.sender_id; 
-          
-          if (msgSenderIdRaw === "me") {
-            msgSenderIdRaw = currentUser.id;
-          } else if (msgSenderIdRaw === undefined || msgSenderIdRaw === null) {
-            msgSenderIdRaw = 0; 
-          }
-          
+          const msgSenderId = parseInt(String(msg.senderId || msg.sender_id));
           const currentUserId = parseInt(currentUser.id, 10);
-          const msgSenderId = parseInt(String(msgSenderIdRaw), 10); 
-          
           const isMine = msgSenderId === currentUserId;
+          const isRoom = location.pathname.startsWith("/chatPage/room/");
 
           return (
             <Box
-              key={msg.id || index} 
+              key={msg.id || index}
               sx={{
                 display: "flex",
                 justifyContent: isMine ? "flex-end" : "flex-start",
@@ -129,14 +162,42 @@ export function MessageList() {
                   boxShadow: 1,
                 }}
               >
-                {!isMine && isRoom(selectedChat) && (
-                  <Typography variant="caption" sx={{ display: "block", fontWeight: 'bold', mb: 0.5, color: '#333' }}>
-                    {msg.sender_username || "Inconnu"} 
+                {!isMine && isRoom && (
+                  <Typography
+                    variant="caption"
+                    sx={{
+                      display: "block",
+                      fontWeight: "bold",
+                      mb: 0.5,
+                      color: "#333",
+                    }}
+                  >
+                    {msg.sender_username || "Inconnu"}
                   </Typography>
                 )}
-                
-                <Typography variant="body2">{msg.content}</Typography>
-                <Typography variant="caption" sx={{ display: "block", textAlign: "right", opacity: 0.8, mt: 0.5, fontSize: '0.65rem' }}>
+
+                {msg.content && <Typography variant="body2">{msg.content}</Typography>}
+
+                {msg.imageUrl && (
+                  <Box
+                    sx={{
+                      mt: msg.content ? 1 : 0,
+                      display: "flex",
+                      justifyContent: "center",
+                    }}
+                  >
+                    <img
+                      src={msg.imageUrl}
+                      alt=""
+                      style={{ maxWidth: "180px", borderRadius: "8px", cursor: "pointer" }}
+                    />
+                  </Box>
+                )}
+
+                <Typography
+                  variant="caption"
+                  sx={{ display: "block", textAlign: "right", opacity: 0.8, mt: 0.5, fontSize: "0.65rem" }}
+                >
                   {new Date(msg.sent_at || msg.timestamp || new Date().toISOString()).toLocaleTimeString([], {
                     hour: "2-digit",
                     minute: "2-digit",
@@ -148,19 +209,25 @@ export function MessageList() {
         })}
       </Box>
 
-      <Box sx={{ display: "flex", gap: 1 }}>
+      <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+        <IconButton color="primary" component="label">
+          <Image />
+          <input type="file" accept="image/*" hidden onChange={handleImageSelect} />
+        </IconButton>
+
         <TextField
           fullWidth
           variant="outlined"
           size="small"
-          placeholder="Écrire un message..."
+          placeholder={imageFile ? `Image sélectionnée: ${imageFile.name}` : "Écrire..."}
           value={newMessage}
           onChange={(e) => setNewMessage(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && handleSend()}
         />
-        <Button variant="contained" onClick={handleSend}>
-          Envoyer
-        </Button>
+
+        <IconButton color="primary" onClick={handleSend}>
+          <Send />
+        </IconButton>
       </Box>
     </Paper>
   );
