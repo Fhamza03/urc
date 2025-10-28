@@ -1,6 +1,6 @@
 import { sql } from "@vercel/postgres";
 // Assurez-vous d'importer getConnecterUser ici ! C'est crucial.
-import { checkSession, unauthorizedResponse, getConnecterUser } from "../lib/session"; 
+import { checkSession, unauthorizedResponse, getConnecterUser } from "../lib/session.js"; 
 
 export const config = {
   runtime: "nodejs",

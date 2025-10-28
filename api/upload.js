@@ -1,7 +1,7 @@
 // Fichier : /api/upload.js (Nouvel Endpoint)
 
 import { put } from '@vercel/blob';
-import { checkSession, unauthorizedResponse } from '../lib/session';
+import { checkSession, unauthorizedResponse } from '../lib/session.js';
 
 // Configuration pour lire le corps du formulaire (multipart/form-data)
 export const config = {

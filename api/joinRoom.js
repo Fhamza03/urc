@@ -1,5 +1,5 @@
 import { sql } from "@vercel/postgres";
-import { checkSession, unauthorizedResponse, getConnecterUser } from "../lib/session";
+import { checkSession, unauthorizedResponse, getConnecterUser } from "../lib/session.js";
 
 export const config = {
     runtime: 'nodejs',
