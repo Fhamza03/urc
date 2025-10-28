@@ -3,7 +3,7 @@ import { sql } from "@vercel/postgres";
 import { checkSession, unauthorizedResponse, getConnecterUser } from "../lib/session.js"; 
 
 export const config = {
-  runtime: "nodejs",
+  runtime: "edge",
 };
 
 export default async function handler(req) {

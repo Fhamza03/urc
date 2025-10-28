@@ -5,7 +5,7 @@ import { checkSession, unauthorizedResponse } from '../lib/session.js';
 
 // Configuration pour lire le corps du formulaire (multipart/form-data)
 export const config = {
-  runtime: 'nodejs',
+  runtime: 'edge',
 };
 
 export default async function handler(req) {
