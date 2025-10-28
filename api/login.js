@@ -2,10 +2,6 @@ import { db } from '@vercel/postgres';
 import { Redis } from '@upstash/redis';
 import { arrayBufferToBase64, stringToArrayBuffer } from "../lib/base64.js";
 
-export const config = {
-    runtime: 'nodejs',
-};
-
 const redis = Redis.fromEnv();
 
 export default async function handler(req, res) {
