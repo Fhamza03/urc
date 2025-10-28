@@ -3,8 +3,9 @@ import { Redis } from '@upstash/redis';
 import {arrayBufferToBase64, stringToArrayBuffer} from "../lib/base64";
 
 export const config = {
-    runtime: 'edge',
+    runtime: 'nodejs',
 };
+
 
 const redis = Redis.fromEnv();
 
