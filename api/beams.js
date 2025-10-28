@@ -3,7 +3,7 @@ import PushNotifications from "@pusher/push-notifications-server";
 import { Redis } from '@upstash/redis';
 
 export const config = {
-    runtime: 'edge',
+    runtime: 'nodejs',
 };
 
 
