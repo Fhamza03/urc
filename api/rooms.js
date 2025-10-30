@@ -1,43 +1,88 @@
-import { sql } from "@vercel/postgres";
-// Assurez-vous d'importer getConnecterUser ici ! C'est crucial.
-import { checkSession, unauthorizedResponse, getConnecterUser } from "../lib/session.js"; 
+import { Redis } from "@upstash/redis";
 
+const redis = Redis.fromEnv();
 
+export async function getConnecterUser(request) {
+  let token = new Headers(request.headers).get("Authorization");
+  if (token === undefined || token === null || token === "") {
+    return null;
+  } else {
+    token = token.replace("Bearer ", "");
+  }
+  console.log("checking " + token);
+  const user = await redis.get(token);
+  console.log("Got user : " + user.id);
+  return user;
+}
 
-export default async function handler(req) {
+export function triggerNotConnected(res) {
+  res.status(401).json('{code: "UNAUTHORIZED", message: "Session expired"}');
+}
+
+export default async function handler(request, response) {
   try {
-    const connected = await checkSession(req);
-    if (!connected) return unauthorizedResponse();
+    const user = await getConnecterUser(request);
+    if (!user) return triggerNotConnected(response);
 
-    // 1. Récupérer l'ID de l'utilisateur connecté
-    const currentUser = await getConnecterUser(req);
-    const currentUserId = currentUser.id;
+    if (request.method === "GET") {
+      // 📋 Récupérer la liste de tous les salons
+      const rooms = await redis.lrange("rooms:list", 0, -1);
 
-    // 2. Requête SQL mise à jour avec LEFT JOIN pour vérifier l'adhésion
-    const { rows } = await sql`
-      SELECT
-        r.room_id AS id,
-        r.name,  
-        r.created_on,
-        -- Ajout de la colonne is_member: TRUE si l'utilisateur est trouvé dans room_members, FALSE sinon.
-        CASE WHEN rm.user_id IS NOT NULL THEN TRUE ELSE FALSE END AS is_member
-      FROM rooms r
-      -- LEFT JOIN pour vérifier l'adhésion pour l'utilisateur actuel
-      LEFT JOIN room_members rm ON r.room_id = rm.room_id AND rm.user_id = ${currentUserId}
-      ORDER BY r.created_on ASC;
-    `;
+      // Parser les salons JSON
+      const parsedRooms = rooms
+        .map((roomStr) => {
+          try {
+            return typeof roomStr === "string" ? JSON.parse(roomStr) : roomStr;
+          } catch {
+            console.warn("⚠️ Skipped invalid room:", roomStr);
+            return null;
+          }
+        })
+        .filter(Boolean);
 
-    // 3. Renvoi des données
-    return new Response(JSON.stringify(rows), {
-      status: 200,
-      headers: { "content-type": "application/json" },
-    });
-    
-  } catch (error) {
-    console.error("Error fetching rooms:", error);
-    return new Response(JSON.stringify({ error: "Internal Server Error" }), {
-      status: 500,
-      headers: { "content-type": "application/json" },
-    });
+      return response.json({
+        success: true,
+        rooms: parsedRooms,
+      });
+    }
+
+    if (request.method === "POST") {
+      // 🆕 Créer un nouveau salon
+      const { name, description } = request.body;
+
+      if (!name || !name.trim()) {
+        return response.status(400).json({
+          error: "Le nom du salon est requis",
+        });
+      }
+
+      // Générer un ID unique pour le salon
+      const roomId = `room_${Date.now()}_${Math.random()
+        .toString(36)
+        .substr(2, 9)}`;
+
+      const newRoom = {
+        id: roomId,
+        name: name.trim(),
+        description: description?.trim() || "",
+        createdAt: new Date().toISOString(),
+        createdBy: user.id,
+        createdByUsername: user.username,
+      };
+
+      // Sauvegarder le salon dans Redis
+      await redis.lpush("rooms:list", JSON.stringify(newRoom));
+
+      return response.json({
+        success: true,
+        room: newRoom,
+      });
+    }
+
+    // Méthode non supportée
+    response.status(405).json({ error: "Method not allowed" });
+  } catch (err) {
+    console.error("Error in rooms API:", err);
+    response.status(500).json({ error: "Internal server error" });
   }
 }
