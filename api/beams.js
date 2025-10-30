@@ -2,11 +2,6 @@
 import PushNotifications from "@pusher/push-notifications-server";
 import { Redis } from '@upstash/redis';
 
-export const config = {
-    runtime: 'nodejs',
-};
-
-
 const redis = Redis.fromEnv();
 
 export default async (req, res) => {

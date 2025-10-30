@@ -34,9 +34,6 @@
     "test": "react-scripts test",
     "eject": "react-scripts eject"
   },
-  "engines": {
-  "node": ">=20"
-  },
   "browserslist": {
     "production": [
       ">0.2%",

@@ -3,10 +3,6 @@
 import { put } from '@vercel/blob';
 import { checkSession, unauthorizedResponse } from '../lib/session.js';
 
-// Configuration pour lire le corps du formulaire (multipart/form-data)
-export const config = {
-  runtime: 'nodejs',
-};
 
 export default async function handler(req) {
   // 1. Vérification de session
