@@ -15,7 +15,6 @@ export const ChatWindow: React.FC = () => {
     );
   }
 
-  // Déterminer le nom à afficher
   const chatName = "name" in selectedChat ? selectedChat.name : selectedChat.username;
 
   return (

@@ -34,7 +34,6 @@ export function Login() {
   (result: Session) => {
     setSession(result);
 
-    // ✅ Stockage dans sessionStorage pour que le chat sache qui est l'utilisateur
     sessionStorage.setItem("token", result.token);
     sessionStorage.setItem(
       "user",
@@ -150,7 +149,6 @@ export function Login() {
             </Alert>
           )}
 
-          {/* Lien vers la page d'inscription */}
           <Typography textAlign="center" sx={{ mt: 1 }}>
             <Link
               component="button"

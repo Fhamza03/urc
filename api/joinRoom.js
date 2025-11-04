@@ -5,7 +5,6 @@ import { checkSession, unauthorizedResponse, getConnecterUser } from "../lib/ses
 
 export default async function handler(req, res) {
   try {
-    // Vérifier la session
     const connected = await checkSession(req);
     if (!connected) return unauthorizedResponse();
 
@@ -28,7 +27,6 @@ export default async function handler(req, res) {
       });
     }
 
-    // Vérifier si l'utilisateur est déjà membre
     const { rowCount } = await sql`
       SELECT id FROM room_members
       WHERE room_id = ${roomId} AND user_id = ${currentUser.id};
@@ -41,7 +39,6 @@ export default async function handler(req, res) {
       });
     }
 
-    // Ajouter l'utilisateur à room_members
     await sql`
       INSERT INTO room_members (room_id, user_id)
       VALUES (${roomId}, ${currentUser.id});

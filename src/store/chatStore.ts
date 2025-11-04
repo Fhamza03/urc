@@ -1,6 +1,5 @@
 import { create } from "zustand";
 
-// Fichier : ../store/chatStore.ts (Mise à jour essentielle)
 
 export interface Message {
   id?: number | string; 
@@ -18,12 +17,10 @@ export interface Chat {
   id: number;
   name: string;
   messages: Message[];
-  // Rendu obligatoire par UserList.tsx
   isMember: boolean; 
 }
 
-// ... le reste de votre store ...
-// Utilisateurs
+
 export interface User {
   id: number;
   username: string;
@@ -31,7 +28,6 @@ export interface User {
   messages?: Message[];
 }
 
-// Type unifié pour selectedChat
 export type ChatType = Chat | (User & { messages: Message[] });
 
 interface ChatState {

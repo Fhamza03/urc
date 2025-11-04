@@ -30,7 +30,6 @@ export function UserList() {
     const token = sessionStorage.getItem("token");
     if (!token) return;
 
-    // Fetch rooms (avec is_member)
     fetch("/api/rooms", { headers: { Authorization: `Bearer ${token}` } })
       .then((res) => (res.ok ? res.json() : Promise.reject("Non autorisé")))
       .then((data) =>
@@ -44,7 +43,6 @@ export function UserList() {
       )
       .catch((err) => console.error("Erreur fetch rooms:", err));
 
-    // Fetch utilisateurs
     fetch("/api/users", { headers: { Authorization: `Bearer ${token}` } })
       .then((res) => (res.ok ? res.json() : Promise.reject("Non autorisé")))
       .then((data) => setUsers(data))
@@ -90,7 +88,6 @@ export function UserList() {
 
       if (!res.ok && res.status !== 200) throw new Error("Erreur join room");
 
-      // Mise à jour du store
       setRooms(
         rooms.map((r) => (r.id === room.id ? { ...r, isMember: true } : r))
       );
@@ -98,7 +95,6 @@ export function UserList() {
       selectChat({ ...room, isMember: true });
       navigate(`/chatPage/room/${room.id}`);
 
-      // Fetch messages après avoir rejoint
       const msgsRes = await fetch(`/api/roomMessages?roomId=${room.id}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -225,7 +221,6 @@ export function UserList() {
 
       <Divider sx={{ my: 2 }} />
 
-      {/* Bouton de déconnexion */}
       <Box sx={{ textAlign: "center", mt: "auto" }}>
         <Button
           variant="outlined"

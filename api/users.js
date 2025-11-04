@@ -7,14 +7,11 @@ export const config = {
 
 export default async function handler(req) {
   try {
-    // Vérifier la session avec le token du header
     const connected = await checkSession(req);
     if (!connected) return unauthorizedResponse();
 
-    // Récupérer l'utilisateur connecté
     const currentUser = await getConnecterUser(req);
 
-    // Récupérer tous les autres utilisateurs avec leur dernière connexion
     const { rows } = await sql`
       SELECT 
         user_id AS id, 

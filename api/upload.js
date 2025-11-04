@@ -1,11 +1,8 @@
-// Fichier : /api/upload.js (Nouvel Endpoint)
-
 import { put } from '@vercel/blob';
 import { checkSession, unauthorizedResponse } from '../lib/session.js';
 
 
 export default async function handler(req) {
-  // 1. Vérification de session
   const connected = await checkSession(req);
   if (!connected) return unauthorizedResponse();
 
@@ -17,7 +14,6 @@ export default async function handler(req) {
   }
 
   try {
-    // 2. Lecture du corps du formulaire multipart (nécessaire pour les fichiers)
     const formData = await req.formData();
     const file = formData.get('file');
 
@@ -28,15 +24,13 @@ export default async function handler(req) {
       });
     }
 
-    // 3. Téléversement vers Vercel Blob
-    // Le nom du fichier est construit pour assurer l'unicité
+
     const filename = `${Date.now()}-${file.name.replace(/[^a-z0-9.]/gi, '_')}`;
 
     const blob = await put(filename, file, {
-      access: 'public', // Rendre l'image accessible publiquement
+      access: 'public', 
     });
 
-    // 4. Retourner l'URL Blob
     return new Response(JSON.stringify({ url: blob.url }), {
       status: 200,
       headers: { 'content-type': 'application/json' },

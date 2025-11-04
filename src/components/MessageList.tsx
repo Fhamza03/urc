@@ -8,7 +8,7 @@ import {
 import { Image, Send } from "@mui/icons-material";
 import { useChatStore, Chat, Message } from "../store/chatStore";
 import { useState, useRef, useEffect } from "react";
-import { useLocation } from "react-router-dom"; // pour lire l'URL
+import { useLocation } from "react-router-dom"; 
 
 export function MessageList() {
   const { selectedChat, updateMessagesInChat } = useChatStore();
@@ -16,9 +16,8 @@ export function MessageList() {
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [currentUser, setCurrentUser] = useState<any>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
-  const location = useLocation(); // récupère l'URL actuelle
+  const location = useLocation(); 
 
-  // Défilement automatique en bas
   useEffect(() => {
     scrollRef.current?.scrollTo({
       top: scrollRef.current.scrollHeight,
@@ -26,7 +25,6 @@ export function MessageList() {
     });
   }, [selectedChat?.messages]);
 
-  // Récupération des infos de l'utilisateur courant depuis session
   useEffect(() => {
     const userData = sessionStorage.getItem("user");
     if (userData) {
@@ -61,7 +59,6 @@ export function MessageList() {
       let apiUrl: string;
       let body: any = {};
 
-      // ✅ Détermine le type via l'URL
       const isRoom = location.pathname.startsWith("/chatPage/room/");
       if (isRoom) {
         apiUrl = "/api/roomMessages";
@@ -76,7 +73,6 @@ export function MessageList() {
         body.imageUrl = base64;
       }
 
-      // Message local temporaire
       const temporaryMessage: Message = {
         id: Math.random().toString(),
         senderId: currentUser.id,
@@ -104,7 +100,6 @@ export function MessageList() {
 
       if (!res.ok) throw new Error("Erreur envoi message");
 
-      // Re-fetch messages depuis serveur
       const fetchUrl = isRoom
         ? `/api/roomMessages?roomId=${selectedChat.id}`
         : `/api/message?userId=${selectedChat.id}`;

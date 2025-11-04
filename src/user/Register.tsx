@@ -1,4 +1,3 @@
-// src/user/Register.tsx
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Box, Button, TextField, Typography, Alert, Fade, Link } from "@mui/material";
@@ -136,7 +135,6 @@ export function Register() {
           {error.message && <Alert severity="error">{error.message}</Alert>}
           {success && <Alert severity="success">Inscription réussie ! Redirection…</Alert>}
 
-          {/* Lien vers la page de connexion */}
           <Typography textAlign="center" sx={{ mt: 1 }}>
             <Link
               component="button"

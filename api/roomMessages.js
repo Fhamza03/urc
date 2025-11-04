@@ -1,5 +1,3 @@
-// Fichier : /api/roomMessages.js
-
 import { sql } from "@vercel/postgres";
 import { checkSession, unauthorizedResponse, getConnecterUser } from "../lib/session.js";
 
@@ -14,11 +12,9 @@ export default async function handler(req) {
     if (!currentUser) return unauthorizedResponse();
 
     if (req.method === "POST") {
-      // 1. Récupération de 'imageUrl' en plus de 'roomId' et 'content'
       const { roomId, content, imageUrl } = await req.json();
       
-      // La validation doit autoriser l'envoi d'une image sans texte, 
-      // ou d'un texte sans image, mais pas les deux vides.
+
       if (!roomId || (!content && !imageUrl)) {
         return new Response(JSON.stringify({ error: "roomId et au moins content ou imageUrl requis" }), {
           status: 400,
@@ -26,7 +22,6 @@ export default async function handler(req) {
         });
       }
 
-      // Vérifier que l'utilisateur est membre du salon
       const { rowCount: isMember } = await sql`
         SELECT 1 FROM room_members 
         WHERE room_id = ${roomId} AND user_id = ${currentUser.id};
@@ -38,8 +33,6 @@ export default async function handler(req) {
         });
       }
 
-      // 2. Insérer le message, y compris 'image_url'
-      // Utilisation de || null pour s'assurer que si imageUrl est undefined, SQL reçoit NULL.
       const { rows } = await sql`
         INSERT INTO messages (room_id, sender_id, content, image_url)
         VALUES (${roomId}, ${currentUser.id}, ${content || ''}, ${imageUrl || null})
@@ -64,7 +57,6 @@ export default async function handler(req) {
         });
       }
 
-      // Vérifier que l'utilisateur est membre du salon
       const { rowCount: isMember } = await sql`
         SELECT 1 FROM room_members 
         WHERE room_id = ${roomId} AND user_id = ${currentUser.id};
@@ -76,7 +68,6 @@ export default async function handler(req) {
         });
       }
 
-      // 3. Récupérer les messages, en incluant 'm.image_url'
       const { rows } = await sql`
         SELECT 
           m.message_id, 
