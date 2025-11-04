@@ -14,12 +14,18 @@ export default async function handler(request, response) {
     if (request.method === "GET") {
       const { rows } = await sql`
         SELECT 
-          room_id AS id,
-          name,
-          created_on,
-          created_by
-        FROM rooms
-        ORDER BY created_on DESC;
+          r.room_id AS id,
+          r.name,
+          r.created_on,
+          r.created_by,
+          EXISTS (
+            SELECT 1
+            FROM room_members rm
+            WHERE rm.room_id = r.room_id
+              AND rm.user_id = ${user.id}
+          ) AS is_member
+        FROM rooms r
+        ORDER BY r.created_on DESC;
       `;
 
       console.log("✅ Rooms fetched:", rows.length);
