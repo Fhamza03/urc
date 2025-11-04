@@ -10,9 +10,17 @@ import {
   Box,
   Button,
 } from "@mui/material";
-import { useChatStore, Chat } from "../store/chatStore";
+import { useChatStore, Chat, User, Message } from "../store/chatStore";
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+
+interface RoomFromAPI {
+  id: number;
+  name: string;
+  created_on: string;
+  created_by: string;
+  is_member?: boolean;
+}
 
 export function UserList() {
   const {
@@ -30,26 +38,33 @@ export function UserList() {
     const token = sessionStorage.getItem("token");
     if (!token) return;
 
+    // 🔹 Fetch rooms
     fetch("/api/rooms", { headers: { Authorization: `Bearer ${token}` } })
       .then((res) => (res.ok ? res.json() : Promise.reject("Non autorisé")))
-      .then((data) =>
-        setRooms(
-          data.map((room: any) => ({
-            ...room,
-            messages: [],
-            isMember: room.is_member || false,
-          }))
-        )
-      )
+      .then((data) => {
+        if (data && Array.isArray(data.rooms)) {
+          setRooms(
+            data.rooms.map((room: RoomFromAPI): Chat => ({
+              id: room.id,
+              name: room.name,
+              messages: [],
+              isMember: room.is_member ?? true,
+            }))
+          );
+        } else {
+          console.warn("⚠️ Données rooms inattendues:", data);
+        }
+      })
       .catch((err) => console.error("Erreur fetch rooms:", err));
 
+    // 🔹 Fetch users
     fetch("/api/users", { headers: { Authorization: `Bearer ${token}` } })
       .then((res) => (res.ok ? res.json() : Promise.reject("Non autorisé")))
-      .then((data) => setUsers(data))
+      .then((data: User[]) => setUsers(data))
       .catch((err) => console.error("Erreur fetch users:", err));
   }, [setRooms, setUsers]);
 
-  const handleSelectUser = async (user: any) => {
+  const handleSelectUser = async (user: User) => {
     if (!user.id || !user.username) return;
 
     const userChat: Chat = {
@@ -58,6 +73,7 @@ export function UserList() {
       messages: [],
       isMember: true,
     };
+
     selectChat(userChat);
     navigate(`/chatPage/user/${user.id}`);
 
@@ -74,7 +90,7 @@ export function UserList() {
     }
   };
 
-  const handleJoinRoom = async (room: any) => {
+  const handleJoinRoom = async (room: Chat) => {
     const token = sessionStorage.getItem("token");
     try {
       const res = await fetch("/api/joinRoom", {
@@ -99,7 +115,7 @@ export function UserList() {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (msgsRes.ok) {
-        const data = await msgsRes.json();
+        const data: Message[] = await msgsRes.json();
         updateMessagesInChat(room.id, data);
       }
     } catch (err) {
@@ -108,7 +124,7 @@ export function UserList() {
   };
 
   const handleLogout = () => {
-    sessionStorage.removeItem("token");  
+    sessionStorage.removeItem("token");
     sessionStorage.removeItem("externalId");
     sessionStorage.removeItem("user");
     sessionStorage.removeItem("username");
@@ -147,7 +163,6 @@ export function UserList() {
                 disabled={!room.isMember}
                 onClick={async () => {
                   if (!room.isMember) return;
-
                   selectChat(room);
                   navigate(`/chatPage/room/${room.id}`);
 
@@ -156,7 +171,7 @@ export function UserList() {
                     headers: { Authorization: `Bearer ${token}` },
                   });
                   if (res.ok) {
-                    const data = await res.json();
+                    const data: Message[] = await res.json();
                     updateMessagesInChat(room.id, data);
                   }
                 }}

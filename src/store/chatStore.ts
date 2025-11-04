@@ -1,6 +1,5 @@
 import { create } from "zustand";
 
-
 export interface Message {
   id?: number | string; 
   senderId?: number | string; 
@@ -13,13 +12,13 @@ export interface Message {
   timestamp?: string; 
   sender_username?: string; 
 }
+
 export interface Chat {
   id: number;
   name: string;
   messages: Message[];
   isMember: boolean; 
 }
-
 
 export interface User {
   id: number;
