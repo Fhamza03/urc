@@ -1,6 +1,10 @@
 import { getConnecterUser } from "../lib/session.js";
 import { sql } from "@vercel/postgres";
 
+export const config = {
+  runtime: 'edge',
+};
+
 export default async function handler(request, response) {
   try {
     const user = await getConnecterUser(request);
