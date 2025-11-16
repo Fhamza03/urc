@@ -2,7 +2,7 @@ import { getConnecterUser } from "../lib/session.js";
 import { sql } from "@vercel/postgres";
 
 export const config = {
-  runtime: 'nodejs',
+  runtime: 'edge',
 };
 
 export default async function handler(request, response) {
