@@ -1,73 +1,83 @@
-import { getConnecterUser } from "../lib/session.js";
 import { sql } from "@vercel/postgres";
 
 export const config = {
   runtime: 'edge',
 };
 
-export default async function handler(request, response) {
+export default async function handler(req) {
   try {
-    const user = await getConnecterUser(request);
-    if (!user) {
-      return response.status(401).json({
-        code: "UNAUTHORIZED",
-        message: "Session expirée",
-      });
-    }
-
-    if (request.method === "GET") {
+    console.log("=== ROOMS API START ===");
+    console.log("Method:", req.method);
+    console.log("URL:", req.url);
+    
+    console.log("Testing database connection...");
+    const testQuery = await sql`SELECT 1 as test`;
+    console.log("Database OK:", testQuery);
+    
+    const cookies = req.headers.get('cookie');
+    console.log("Cookies:", cookies);
+    
+    if (req.method === "GET") {
+      console.log("Fetching rooms...");
+      
       const { rows } = await sql`
         SELECT 
-          r.room_id AS id,
-          r.name,
-          r.created_on,
-          r.created_by,
-          EXISTS (
-            SELECT 1
-            FROM room_members rm
-            WHERE rm.room_id = r.room_id
-              AND rm.user_id = ${user.id}
-          ) AS is_member
-        FROM rooms r
-        ORDER BY r.created_on DESC;
+          room_id AS id,
+          name,
+          created_on,
+          created_by
+        FROM rooms
+        ORDER BY created_on DESC
+        LIMIT 10;
       `;
-
-      console.log("✅ Rooms fetched:", rows.length);
-      return response.json({
-        success: true,
-        rooms: rows,
-      });
+      
+      console.log("Rooms found:", rows.length);
+      console.log("Rooms data:", JSON.stringify(rows));
+      
+      return new Response(
+        JSON.stringify({
+          success: true,
+          rooms: rows,
+          debug: {
+            hasCookies: !!cookies,
+            timestamp: new Date().toISOString()
+          }
+        }),
+        { 
+          status: 200, 
+          headers: { 
+            "content-type": "application/json",
+            "cache-control": "no-store"
+          } 
+        }
+      );
     }
-
-    if (request.method === "POST") {
-      const { name } = request.body;
-
-      if (!name || !name.trim()) {
-        return response.status(400).json({
-          error: "Le nom du salon est requis",
-        });
-      }
-
-      const created_on = new Date().toISOString();
-
-      const { rows } = await sql`
-        INSERT INTO rooms (name, created_on, created_by)
-        VALUES (${name.trim()}, ${created_on}, ${user.id})
-        RETURNING room_id AS id, name, created_on, created_by;
-      `;
-
-      const newRoom = rows[0];
-
-      return response.json({
-        success: true,
-        room: newRoom,
-      });
-    }
-
-    response.status(405).json({ error: "Method not allowed" });
-
+    
+    return new Response(
+      JSON.stringify({ error: "Method not allowed" }),
+      { status: 405, headers: { "content-type": "application/json" } }
+    );
+    
   } catch (err) {
-    console.error("Error in rooms API:", err);
-    response.status(500).json({ error: "Internal server error" });
+    console.error("=== ERROR ===");
+    console.error("Error name:", err.name);
+    console.error("Error message:", err.message);
+    console.error("Error stack:", err.stack);
+    console.error("Error details:", JSON.stringify(err, null, 2));
+    
+    return new Response(
+      JSON.stringify({ 
+        error: "Internal server error",
+        details: {
+          name: err.name,
+          message: err.message,
+          stack: err.stack
+        }
+      }),
+      { 
+        status: 500, 
+        headers: { "content-type": "application/json" } 
+      }
+    );
   }
 }
