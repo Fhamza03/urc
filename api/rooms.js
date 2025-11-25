@@ -1,8 +1,7 @@
 import { sql } from "@vercel/postgres";
 import { Redis } from '@upstash/redis';
 
-const redis = Redis.fromEnv(); // ← Correction de __Redis__
-
+const redis = Redis.fromEnv();
 export const config = {
   runtime: 'edge',
 };
@@ -32,11 +31,10 @@ export default async function handler(req) {
     console.log("=== ROOMS API START ===");
     console.log("Method:", req.method);
     
-    // Récupérer l'utilisateur depuis Redis
     const user = await getConnecterUser(req);
     
     if (!user) {
-      console.log("❌ Unauthorized - no user");
+      console.log("Unauthorized - no user");
       return new Response(
         JSON.stringify({
           code: "UNAUTHORIZED",
@@ -49,10 +47,10 @@ export default async function handler(req) {
       );
     }
 
-    console.log("✅ User authenticated:", user.username);
+    console.log("User authenticated:", user.username);
 
     if (req.method === "GET") {
-      console.log("📥 Fetching rooms for user:", user.id);
+      console.log("Fetching rooms for user:", user.id);
       
       const { rows } = await sql`
         SELECT 
@@ -70,7 +68,7 @@ export default async function handler(req) {
         ORDER BY r.created_on DESC;
       `;
       
-      console.log("✅ Rooms fetched:", rows.length);
+      console.log("Rooms fetched:", rows.length);
       console.log("Sample room:", rows[0]);
       
       return new Response(
@@ -92,7 +90,7 @@ export default async function handler(req) {
       const body = await req.json();
       const { name } = body;
       
-      console.log("📝 Creating room:", name);
+      console.log("Creating room:", name);
       
       if (!name || !name.trim()) {
         return new Response(
@@ -114,7 +112,7 @@ export default async function handler(req) {
 
       const newRoom = rows[0];
       
-      console.log("✅ Room created:", newRoom);
+      console.log("Room created:", newRoom);
 
       // Ajouter le créateur comme membre
       await sql`
@@ -122,7 +120,7 @@ export default async function handler(req) {
         VALUES (${newRoom.id}, ${user.id});
       `;
       
-      console.log("✅ Creator added as member");
+      console.log("Creator added as member");
 
       return new Response(
         JSON.stringify({

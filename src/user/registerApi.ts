@@ -1,4 +1,3 @@
-// src/user/registerApi.ts
 import { CustomError } from "../model/CustomError";
 
 export interface RegisterData {
